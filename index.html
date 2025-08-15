@@ -1,0 +1,195 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab560
+\pard\pardeftab560\slleading20\pardirnatural\partightenfactor0
+
+\f0\fs26 \cf0 <!DOCTYPE html>\
+<html lang="en">\
+<head>\
+  <meta charset="utf-8" />\
+  <meta name="viewport" content="width=device-width, initial-scale=1" />\
+  <title>Real\uc0\u8209 Time PBR \'93Ray\u8209 Tracing\u8209 Style\'94 Character Demo \'97 Standalone</title>\
+  <style>\
+    :root \{ --fg:#eaeaea; --bg:#0a0a0a; --panel:rgba(0,0,0,.35); \}\
+    html,body\{height:100%;margin:0;background:var(--bg);\}#app\{position:fixed;inset:0;\}#ui\{position:fixed;left:12px;top:12px;color:var(--fg);font:12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--panel);padding:10px 12px;border-radius:10px;backdrop-filter:blur(4px);\} .row\{display:flex;gap:8px;align-items:center;margin-top:6px\}.btn\{padding:6px 10px;border-radius:8px;border:1px solid #444;color:#eee;background:#141414;cursor:pointer\}.btn:hover\{background:#1b1b1b\}.file\{display:none\}.hint\{opacity:.9\}canvas\{display:block;width:100%;height:100%\}#drop\{position:fixed;inset:0;display:none;align-items:center;justify-content:center;border:2px dashed #666;color:#bbb;font:14px system-ui;background:rgba(255,255,255,.03)\}#drop.show\{display:flex\}\
+  </style>\
+  <script type="importmap">\
+    \{\
+      "imports": \{\
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js"\
+      \}\
+    \}\
+  </script>\
+</head>\
+<body>\
+  <div id="app"></div>\
+  <div id="ui">\
+    <div><strong>Character Demo</strong> \'97 orbit to look, wheel to zoom</div>\
+    <div class="row">\
+      <button id="load" class="btn">Load Image\'85</button>\
+      <input id="file" class="file" type="file" accept="image/*" />\
+      <button id="remove" class="btn">Remove BG</button>\
+      <button id="reset" class="btn">Reset</button>\
+      <button id="download" class="btn">Download PNG</button>\
+    </div>\
+    <div class="hint" style="margin-top:6px">Tip: drag & drop a photo anywhere on the page.</div>\
+  </div>\
+  <div id="drop">Drop an image to use as your character</div>\
+\
+  <script type="module">\
+    import * as THREE from 'three';\
+    import \{ OrbitControls \} from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';\
+    import \{ GUI \} from 'https://cdn.jsdelivr.net/npm/lil-gui@0.18/+esm';\
+\
+    let currentSrc = null;\
+\
+    const app = document.getElementById('app');\
+    const renderer = new THREE.WebGLRenderer(\{ antialias:true, alpha:false, preserveDrawingBuffer:true \});\
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));\
+    renderer.setSize(innerWidth, innerHeight);\
+    renderer.outputColorSpace = THREE.SRGBColorSpace;\
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;\
+    renderer.toneMappingExposure = 1.0;\
+    renderer.shadowMap.enabled = true;\
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;\
+    app.appendChild(renderer.domElement);\
+\
+    const scene = new THREE.Scene();\
+    scene.background = new THREE.Color(0x0a0a0a);\
+    const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 500);\
+    camera.position.set(3.5, 2.2, 5.5);\
+\
+    const controls = new OrbitControls(camera, renderer.domElement);\
+    controls.target.set(0, 1.4, 0);\
+    controls.enableDamping = true;\
+\
+    function makeStreetPanorama(w=2048,h=1024)\{\
+      const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');\
+      const sky=x.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#8aa8ff'); sky.addColorStop(.5,'#bcd0ff'); sky.addColorStop(.75,'#e7e7e7'); sky.addColorStop(1,'#cfd3d7');\
+      x.fillStyle=sky; x.fillRect(0,0,w,h);\
+      const cols=['#3e4553','#2b323f','#222833'];\
+      function building(px,pw,ph,c)\{ x.fillStyle=c; x.fillRect(px,h*.55-ph,pw,ph); x.fillStyle='rgba(255,255,255,.12)';\
+        for(let i=0;i<Math.floor(pw/40);i++)\{ const wx=px+8+i*30; for(let j=0;j<Math.floor(ph/40);j++)\{ const wy=h*.55-ph+10+j*28; if(Math.random()<.15)x.fillRect(wx,wy,8,12); \}\}\}\
+      for(let L=0;L<3;L++)\{ let px=-100; while(px<w+100)\{ const pw=80+Math.random()*160*(1-L*.2); const ph=(80+Math.random()*220)*(1-L*.15); building(px,pw,ph,cols[L]); px+=pw+(20+Math.random()*40);\} \}\
+      x.fillStyle='#3a3a3e'; x.fillRect(0,h*.65,w,h*.35);\
+      x.strokeStyle='#2d2d30'; x.lineWidth=2; for(let i=0;i<10;i++)\{ const y=h*.65+i*(h*.035); x.beginPath(); x.moveTo(0,y); x.lineTo(w,y); x.stroke(); \}\
+      x.strokeStyle='#d8d8a8'; x.lineWidth=6; x.setLineDash([40,30]); x.beginPath(); x.moveTo(0,h*.825); x.lineTo(w,h*.825); x.stroke(); x.setLineDash([]);\
+      return c.toDataURL('image/png');\
+    \}\
+\
+    const panoURL = makeStreetPanorama();\
+    const panoTex = new THREE.TextureLoader().load(panoURL);\
+    panoTex.mapping = THREE.EquirectangularReflectionMapping;\
+    panoTex.colorSpace = THREE.SRGBColorSpace;\
+    scene.environment = panoTex;\
+\
+    const bgGeo = new THREE.SphereGeometry(80,80,40); bgGeo.scale(-1,1,1);\
+    const bg = new THREE.Mesh(bgGeo, new THREE.MeshBasicMaterial(\{ map:panoTex \}));\
+    scene.add(bg);\
+\
+    const groundMat = new THREE.MeshPhysicalMaterial(\{ color:0x2a2a2a, metalness:.8, roughness:.25, clearcoat:.6, clearcoatRoughness:.2, envMap:scene.environment \});\
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60,60), groundMat);\
+    ground.rotation.x = -Math.PI/2; ground.position.y = 0; ground.receiveShadow = true; scene.add(ground);\
+\
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x353535, .9); hemi.position.set(0,15,0); scene.add(hemi);\
+    const dir = new THREE.DirectionalLight(0xffffff, 1.25); dir.position.set(6,12,7); dir.castShadow = true; dir.shadow.mapSize.set(2048,2048);\
+    dir.shadow.camera.near=.5; dir.shadow.camera.far=60; dir.shadow.camera.left=-15; dir.shadow.camera.right=15; dir.shadow.camera.top=15; dir.shadow.camera.bottom=-15; scene.add(dir);\
+\
+    const placeholder = new THREE.TextureLoader().load('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAABUNJREFUeNrs2z1uwkAQBvB8v1k8p1T1o0HqgF7g8Uqk8+9i1gVaVQfL4K8Kf5lJv3bK6m9h5Gq2QyK5k1I5m9m8oHt5r8QmQAAQIBAgQIECBA4H0a3Y0O3uM3iKkS1Z8Yz3j0jJf2Qy7k1cX2s9t9x9XjP3M1S7+2yK4G0h6cF0bS9gZg2yM0k3qk6y2mN5J3m7fQy7Qh2n1uG9u9w4kO6vE2k3s8yqR3Gd2xw6dB8C9vC2/2EsaC7s7zvIh7m2qG8iE0y2JmGf0r1qg5wq3o2x1Yj8i5Wm9g7Qb0c1kQb0o0r8nY1Hq1mT3nM4H0z7d1r3m7g8+f6h8fR4fNw7H2Wm5b5E0g0k0g0k0g0k0g0k0g0k0g0l8k8c8Gf3qv8z6j5J3m9eGfYyAAAAAElFTkSuQmCC');\
+    placeholder.colorSpace = THREE.SRGBColorSpace;\
+\
+    const charMat = new THREE.MeshPhysicalMaterial(\{ map: placeholder, metalness:0.0, roughness:0.6, clearcoat:0.1, clearcoatRoughness:0.5, ior:1.45, transmission:0.0, transparent:true, opacity:1.0, envMap:scene.environment, side:THREE.DoubleSide \});\
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1,1), charMat);\
+    plane.position.set(0, 1.35, 0);\
+    plane.castShadow = true; scene.add(plane);\
+\
+    const footShadow = new THREE.Mesh(new THREE.CircleGeometry(0.5,32), new THREE.MeshBasicMaterial(\{ color:0x000000, transparent:true, opacity:.35 \}));\
+    footShadow.rotation.x = -Math.PI/2; footShadow.position.set(0, .01, .1); scene.add(footShadow);\
+\
+    const gui = new GUI(); gui.title('Controls');\
+    const params = \{ height:1.35, scale:1.0, rotation:0.0, metalness:0.0, roughness:0.6, clearcoat:0.1, clearcoatRoughness:0.5, ior:1.45, transmission:0.0, exposure:1.0, envRotation:0.0 \};\
+    const ctrls = [];\
+    const fChar = gui.addFolder('Character');\
+    ctrls.push(fChar.add(params,'height',0.3,5.0,.01).onChange(v=>plane.position.y=v));\
+    ctrls.push(fChar.add(params,'scale',0.3,3.0,.01).onChange(v=>plane.scale.setScalar(v)));\
+    ctrls.push(fChar.add(params,'rotation',-Math.PI,Math.PI,.001).onChange(v=>plane.rotation.y=v));\
+    const fMat = gui.addFolder('Material');\
+    ctrls.push(fMat.add(params,'metalness',0,1,.001).onChange(v=>charMat.metalness=v));\
+    ctrls.push(fMat.add(params,'roughness',0,1,.001).onChange(v=>charMat.roughness=v));\
+    ctrls.push(fMat.add(params,'clearcoat',0,1,.001).onChange(v=>charMat.clearcoat=v));\
+    ctrls.push(fMat.add(params,'clearcoatRoughness',0,1,.001).onChange(v=>charMat.clearcoatRoughness=v));\
+    ctrls.push(fMat.add(params,'ior',1.0,2.333,.001).onChange(v=>charMat.ior=v));\
+    ctrls.push(fMat.add(params,'transmission',0,1,.001).onChange(v=>\{charMat.transmission=v; charMat.needsUpdate=true;\}));\
+    const fEnv = gui.addFolder('Environment');\
+    ctrls.push(fEnv.add(params,'exposure',0.2,2.5,.001).onChange(v=>renderer.toneMappingExposure=v));\
+    ctrls.push(fEnv.add(params,'envRotation',-Math.PI,Math.PI,.001).onChange(v=>bg.rotation.y=v));\
+    gui.close();\
+\
+    const fileInput = document.getElementById('file');\
+    document.getElementById('load').onclick = ()=> fileInput.click();\
+\
+    async function removeBgDataUrl(url)\{\
+      try\{\
+        const mod = await import('https://esm.sh/@imgly/background-removal@2');\
+        const fn = mod.removeBackground || mod.default;\
+        if(!fn) return url;\
+        const result = await fn(url, \{ debug:false \});\
+        return (result && result.toDataURL) ? result.toDataURL('image/png') : url;\
+      \}catch(e)\{ return url; \}\
+    \}\
+\
+    function setPlaneFromImage(url)\{\
+      currentSrc = url;\
+      const img = new Image(); img.onload = ()=>\{\
+        const aspect = img.width / img.height;\
+        const height = 1.9;\
+        const width = height * aspect;\
+        plane.geometry.dispose();\
+        plane.geometry = new THREE.PlaneGeometry(width, height);\
+        const old = charMat.map;\
+        const tex = new THREE.Texture(img); tex.needsUpdate = true; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;\
+        charMat.map = tex; charMat.needsUpdate = true;\
+        if (old && old !== placeholder) old.dispose();\
+      \}; img.src = url;\
+    \}\
+\
+    fileInput.onchange = e => \{\
+      const file = e.target.files && e.target.files[0]; if(!file) return;\
+      const reader = new FileReader(); reader.onload = () => \{ currentSrc = reader.result; setPlaneFromImage(currentSrc); \};\
+      reader.readAsDataURL(file);\
+    \};\
+\
+    const drop = document.getElementById('drop');\
+    const show = () => drop.classList.add('show');\
+    const hide = () => drop.classList.remove('show');\
+    ;['dragenter','dragover'].forEach(t=>addEventListener(t,e=>\{e.preventDefault();e.stopPropagation();show();\}));\
+    ;['dragleave','dragend','drop'].forEach(t=>addEventListener(t,e=>\{e.preventDefault();e.stopPropagation();hide();\}));\
+    addEventListener('drop', e=>\{ const f=[...e.dataTransfer.files].find(f=>f.type.startsWith('image/')); if(!f) return; const r=new FileReader(); r.onload=()=>\{ currentSrc = r.result; setPlaneFromImage(currentSrc); \}; r.readAsDataURL(f); \});\
+\
+    document.getElementById('download').onclick = () => \{\
+      const a = document.createElement('a'); a.href = renderer.domElement.toDataURL('image/png'); a.download = 'character_scene.png'; a.click();\
+    \};\
+\
+    document.getElementById('reset').onclick = () => \{\
+      plane.position.set(0,1.35,0); plane.scale.setScalar(1); plane.rotation.set(0,0,0);\
+      Object.assign(params,\{height:1.35,scale:1,rotation:0,metalness:0,roughness:.6,clearcoat:.1,clearcoatRoughness:.5,ior:1.45,transmission:0,exposure:1,envRotation:0\});\
+      renderer.toneMappingExposure = 1.0; bg.rotation.y = 0; ctrls.forEach(c=>c.updateDisplay());\
+    \};\
+\
+    document.getElementById('remove').onclick = async () => \{\
+      if(!currentSrc) return;\
+      const outUrl = await removeBgDataUrl(currentSrc);\
+      currentSrc = outUrl;\
+      setPlaneFromImage(outUrl);\
+    \};\
+\
+    function loop()\{ controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); \}\
+    loop();\
+\
+    addEventListener('resize',()=>\{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); \});\
+  </script>\
+</body>\
+</html>}
